@@ -6,6 +6,10 @@
 #include "proc.h"
 #include "defs.h"
 
+//NEW CODE FOR ASSIGNMENT
+uint64 last_boost = 0;
+extern uint ticks;
+
 struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
@@ -126,10 +130,7 @@ found:
   p->pid = allocpid();
   p->state = USED;
 
-  //NEW CODE FOR ASSIGNMENT
-  p->priority = 0;
-  p->ticks = 0;
-
+  
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
     freeproc(p);
@@ -150,6 +151,11 @@ found:
   memset(&p->context, 0, sizeof(p->context));
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
+
+  //NEW CODE FOR ASSIGNMENT
+  p->priority = 0;
+  p->ticks = 0;
+
 
   return p;
 }
@@ -273,6 +279,7 @@ kfork(void)
     return -1;
   }
 
+
   // Copy user memory from parent to child.
   if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0){
     freeproc(np);
@@ -306,6 +313,10 @@ kfork(void)
   acquire(&np->lock);
   np->state = RUNNABLE;
   release(&np->lock);
+
+  //NEW CODE FOR ASSIGNMENT
+  np->priority = 0;
+  np->ticks = 0;
 
   return pid;
 }
@@ -444,14 +455,30 @@ scheduler(void)
     //intr_off();
     
     //NEW CODE FOR ASSIGNMENT
+    if(ticks - last_boost > 1000){
+      last_boost = ticks;
+      struct proc *ptemp;
+      for(ptemp = proc; ptemp < &proc[NPROC]; ptemp++){
+        acquire(&ptemp->lock);
+        ptemp->priority = 0;
+        ptemp->ticks = 0;
+        release(&ptemp->lock);
+      }
+    }
+
+
     int found = 0;
     for(int p_level = 0; p_level < 3; p_level++){
       for(p = proc; p < &proc[NPROC]; p++) {
         acquire(&p->lock);
-        if(p->state == RUNNABLE) {
+        if(p->state == RUNNABLE && p->priority == p_level){
           // Switch to chosen process.  It is the process's job
           // to release its lock and then reacquire it
           // before jumping back to us.
+          if(p->pid > 2){
+            printf("Running PID %d at Level %d\n", p->pid, p_level);
+          } // Μην τυπώνεις για το init και το sh συνέχεια
+            
           p->state = RUNNING;
           c->proc = p;
           swtch(&c->context, &p->context);
@@ -465,13 +492,13 @@ scheduler(void)
         }
         release(&p->lock);
       }
-    }
-    if(found == 1) {
-      // nothing to run; stop running on this core until an interrupt.
-      //asm volatile("wfi");
+      if(found == 1) {
+        // nothing to run; stop running on this core until an interrupt.
+        //asm volatile("wfi");
 
-      //NEW CODE FOR ASSIGNMENT
-      break;
+        //NEW CODE FOR ASSIGNMENT
+        break;
+      }
     }
   }
 }
