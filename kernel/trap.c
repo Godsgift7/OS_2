@@ -34,6 +34,7 @@ trapinithart(void)
 // called from, and returns to, trampoline.S
 // return value is user satp for trampoline.S to switch to.
 //
+//MODIFIED FOR ASSIGNMENT
 uint64
 usertrap(void)
 {
@@ -81,9 +82,23 @@ usertrap(void)
     kexit(-1);
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
-    yield();
+  if(which_dev == 2){
+    //NEW CODE FOR ASSIGNMENT
+    if(p != 0 && p->state == RUNNING){
+      p->ticks++;
+      //κάνουμε έλεγχο σύμφωνα με τις οδηγίες της άσκησης
+      if(p->priority == 0 && p->ticks >= 1){
+        p->priority = 1;
+        p->ticks =0;
+      }
+      else if(p->priority == 1 && p->ticks >= 2){
+        p->priority = 2;
+        p->ticks = 0;
+      }
+    }
 
+    yield();
+  }
   prepare_return();
 
   // the user page table to switch to, for trampoline.S
@@ -132,6 +147,7 @@ prepare_return(void)
 
 // interrupts and exceptions from kernel code go here via kernelvec,
 // on whatever the current kernel stack is.
+//MODIFIED FOR ASSIGNMENT
 void 
 kerneltrap()
 {
@@ -152,8 +168,23 @@ kerneltrap()
   }
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2 && myproc() != 0)
+  if(which_dev == 2 && myproc() != 0){
+    //NEW CODE FOR ASSIGNMENT
+    struct proc *p = myproc();
+      p->ticks++;
+      //κάνουμε έλεγχο σύμφωνα με τις οδηγίες της άσκησης
+      if(p->priority == 0 && p->ticks >= 1){
+        p->priority = 1;
+        p->ticks =0;
+      }
+      else if(p->priority == 1 && p->ticks >= 2){
+        p->priority = 2;
+        p->ticks = 0;
+      }
     yield();
+  }
+
+  
 
   // the yield() may have caused some traps to occur,
   // so restore trap registers for use by kernelvec.S's sepc instruction.
